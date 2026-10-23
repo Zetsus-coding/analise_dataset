@@ -1,1 +1,1 @@
-print("Isso é um treino básico de git")
+print("Isso é um treino básico de git e algumas de suas funcionalidades.")
