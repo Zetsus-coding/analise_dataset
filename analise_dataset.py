@@ -65,6 +65,12 @@ print(f"Quantidade de registros que \"não batem\": {(condicao != df["Erro"].eq(
 # está "batendo" com o dataset, que será utilizado. Após confirmado (ou não), será feita a decisão se esses registros ou parte deles deve ser desconsiderado. O próprio REFIT diz: "A documentação recomenda
 # descartar ou sinalizar os registros em que Issues = 1, ou, no mínimo, discutir a discrepância na análise.".
 
+df_filtrado = df.loc[df["Erro"] == 0].copy() # Seleciona apenas os registros sem erro (issues = 0) e cria uma cópia independente (um novo dataframe. Esse novo df será utilizada para os cálculos de consumo
+print("\nEstrutura do df 'limpo': ", df_filtrado.shape)# Confirmando o formato do novo df "limpo" (total - 40114)
+
+# Análise do novo df: O motivo de o novo df ser utilizado apenas para os cálculos de consumo (sem afetar a parte 2 do relatório), se deve ao fato de que ao "remover"/ocultar o parte dos registros, isso afe_
+# taria a interpretação relacionada a parte ao intervalo de medição (isso deve ficar esclarecido no relatório). Uma medição pode ser útil no contexto dos intervalos de tempo, mas não o caso da potência
+
 # ---------------------------------------------------
 # Análises dos dados (Primeira parte) V
 # ---------------------------------------------------
@@ -117,3 +123,4 @@ print(df.loc[1404145:1404147]) # Imprimindo as linhas do DataFrame para confirma
 # ---------------------------------------------------
 # Análise dos dados (Segunda parte - TABELA) V
 # ---------------------------------------------------
+
