@@ -250,7 +250,7 @@ analise_outliers["Qtd. outliers"] = fora_limites.sum() # Conta a quantidade de o
 
 print("\n Quantidade de registros com possíveis outliers:", len(df_outliers))
 print(df_outliers.head())
-print(f"\n Isso representa {(len(df_outliers) / len(df_filtrado)) * 100:.3f}% dos registros filtrados")
+print(f"\n Isso representa {(len(df_outliers) / len(df_filtrado)) * 100:.3f}% dos registros filtrados\n")
 
 # Análise dos outliers [3.b]: Foram identificados 620745 registros (14,135% do total) com pelo menos um possível outlier nas variáveis analisadas. Entretanto, ultrapassar os limites do IQR não significa necessariamente
 # uma falha, pois valores elevados podem representar o funcionamento normal de equipamentos elétricos. Além disso, o método apresentou limitações nos aparelhos com IQR igual a zero. O valor máximo da potência 
@@ -267,7 +267,7 @@ potencia_horaria = (
     .mean()
 )
 
-print(potencia_horaria.head())
+print("\n", potencia_horaria.head())
 
 # Geração do gráfico da série temporal de potência (por hora)
 
@@ -321,3 +321,74 @@ plt.show()
 # das 6h, atingindo o pico por volta das 11h, com aproximadamente 1.130 W. Após esse horário, a potência média diminui gradualmente, apresentando valores mais estáveis durante a noite, próximos de 220 a 230 W. Esse comportamento sugere 
 # uma maior demanda elétrica durante a manhã e o início da tarde, mas não permite determinar quais atividades dos moradores provocaram essas variações.
 
+# Comparativo entre os períodos
+
+# Extraindo a hora de cada medição 
+horas = df_filtrado["Tempo"].dt.hour
+
+# Classificando os registros em períodos (madrugada (0h às 5h59), manhã (6h às 11h59), tarde (12h às 17h59) e noite (18h às 23h59))
+# Isso é feito divindindo as horas (0 até 23) em faixas e definindo limites a cada faixa (além de aplicar uma "label" para cada uma) 
+periodos = pd.cut(
+    horas,
+    bins=[-1, 5, 11, 17, 23],
+    labels=["Madrugada", "Manhã", "Tarde", "Noite"]
+)
+ 
+# Agrupamento das medições (por período) e cálculo das estatísticas
+comparacao_periodos = df_filtrado.groupby(
+    periodos, observed=True
+)["Pot_agreg"].agg(["mean", "median", "std", "min", "max"])
+
+# Renomeando as colunas
+comparacao_periodos.columns = [
+    "Média",
+    "Mediana",
+    "Desvio-padrão",
+    "Mínimo",
+    "Máximo"
+]
+
+print("\nComparação entre os períodos do dia:")
+print(comparacao_periodos.round(3).to_string())
+
+# A comparação entre os períodos do dia demonstra que a manhã apresentou a maior potência média (779,672 W), seguida pela tarde (651,381 W). Já a madrugada apresentou a menor média (160,444 W), indicando uma demanda elétrica geralmente
+#  mais baixa nesse período. Os desvios-padrão elevados, especialmente durante a manhã, indicam grande variabilidade nas medições. Além disso, apesar de a noite apresentar uma potência média relativamente baixa, registrou o maior valor 
+# máximo (32.932 W), o que pode indicar um pico isolado ou uma possível anomalia que necessitaria de investigação adicional. Esses resultados são coerentes com o perfil horário observado no gráfico, que apresenta maiores potências médias
+# durante a manhã e o início da tarde.
+
+# 3E -------------------------------------------
+
+# Gráfico de análise comparativa do consumo dos aparelhos (será aproveitado de um df anterior - calculos_estatisticos1)
+
+# Parte 3.e - Comparação entre os aparelhos
+
+# Cria um "novo" df mas sem a coluna de pot. agreg. (deixando apenas os aparelhos) -> seleciona as estatíticas que serão comparadas (média e máximo)
+comparacao_aparelhos = calculos_estatisticos1.drop(
+    index="Pot_agreg"
+)[["Média (W)", "Máximo (W)"]]
+
+# Organiza os aparelhos pela potência média de forma decrescente
+comparacao_aparelhos = comparacao_aparelhos.sort_values(
+    by="Média (W)", ascending=False
+)
+
+print("\nComparação entre os aparelhos:")
+print(comparacao_aparelhos.round(3).to_string())
+
+# Geração do gráfico comparativo
+
+plt.figure(figsize=(11, 6))
+
+plt.barh(
+    comparacao_aparelhos.index,
+    comparacao_aparelhos["Média (W)"]
+)
+
+plt.title("Comparação das potências médias - House 11")
+plt.xlabel("Potência média (W)")
+plt.ylabel("Aparelhos monitorados")
+
+plt.gca().invert_yaxis()
+plt.grid(axis="x", alpha=0.3)
+plt.tight_layout()
+plt.show()
