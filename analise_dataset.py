@@ -1,4 +1,5 @@
 import pandas as pd
+import matplotlib.pyplot as plt
 
 df = pd.read_csv("CLEAN_House11.csv")
 
@@ -251,8 +252,72 @@ print("\n Quantidade de registros com possíveis outliers:", len(df_outliers))
 print(df_outliers.head())
 print(f"\n Isso representa {(len(df_outliers) / len(df_filtrado)) * 100:.3f}% dos registros filtrados")
 
-# Análise dos outliers [3.b]: Foram identificados 620745 registros (14,135%) com pelo menos um possível outlier nas variáveis analisadas. Entretanto, ultrapassar os limites do IQR não significa necessariamente
+# Análise dos outliers [3.b]: Foram identificados 620745 registros (14,135% do total) com pelo menos um possível outlier nas variáveis analisadas. Entretanto, ultrapassar os limites do IQR não significa necessariamente
 # uma falha, pois valores elevados podem representar o funcionamento normal de equipamentos elétricos. Além disso, o método apresentou limitações nos aparelhos com IQR igual a zero. O valor máximo da potência 
 # agregada (32932 W) merece atenção por ser muito elevado, podendo representar uma anomalia de medição. Seria necessária uma investigação adicional para confirmar sua origem.
 
+# 3C --------------------------------------------------------------
+
+# Gráfico de série temporal de potência (por hora)
+
+# Definição da coluna Tempo como indíce temporal para o agrupamento -> seleção da coluna "Pot_agreg" (a que será analisada) -> agrupamento dos registros em intervalos de hora (h)
+potencia_horaria = (
+    df_filtrado.set_index("Tempo")["Pot_agreg"]
+    .resample("h")
+    .mean()
+)
+
+print(potencia_horaria.head())
+
+# Geração do gráfico da série temporal de potência (por hora)
+
+plt.figure(figsize=(12, 5))
+
+plt.plot(potencia_horaria.index, potencia_horaria)
+
+plt.title("Perfil temporal da potência agregada - House 11")
+plt.xlabel("Data")
+plt.ylabel("Potência média horária (W)")
+
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# O gráfico representa o período de 03/06/2014 a 30/06/2015. Para sua construção, os registros foram agrupados em intervalos de uma hora utilizando resample("h"), calculando-se a potência média das medições disponíveis em cada intervalo com a função mean() [média].
+# Foram considerados apenas os registros não sinalizados pelo REFIT (Erro = 0). Os períodos sem medições válidas foram mantidos como NaN, evitando interpretá-los como potência nula. O gráfico permite observar as variações da potência elétrica ao 
+# longo do tempo, identificando períodos de maior e menor demanda e possíveis lacunas nos dados.
+
+# Também são perceptíveis algumas interrupções na série temporal, indicando períodos sem medições válidas. Essas observações sugerem que a demanda elétrica da residência não foi uniforme durante o período analisado, embora não seja possível determinar 
+# as causas dessas variações apenas pelo gráfico.
+
+# 3D ----------------------------------------------------------
+
+# Gráfico de análise do perfil de potência ao longo do dia
+
+# Depois de extrair a hora de cada registro e retornar valores de 0 até 23, agrupa todos os registros que têm a mesma hora (independente do dia) e seleciona a potência agregada e calcula a potência média de cada grupo
+potencia_por_hora = (
+    df_filtrado.groupby(df_filtrado["Tempo"].dt.hour)["Pot_agreg"]
+    .mean()
+)
+
+# Geração do gráfico do perfil de potência ao longo do dia
+
+print(potencia_por_hora)
+
+plt.figure(figsize=(10, 5))
+
+plt.plot(potencia_por_hora.index, potencia_por_hora, marker="o")
+
+plt.title("Perfil médio de potência ao longo do dia - House 11")
+plt.xlabel("Hora do dia")
+plt.ylabel("Potência média (W)")
+
+plt.xticks(range(24))
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# O gráfico demonstra que a potência média da residência varia significativamente conforme o horário do dia. Os menores valores aparecem durante a madrugada, especialmente entre 3h e 5h, enquanto ocorre um aumento expressivo a partir 
+# das 6h, atingindo o pico por volta das 11h, com aproximadamente 1.130 W. Após esse horário, a potência média diminui gradualmente, apresentando valores mais estáveis durante a noite, próximos de 220 a 230 W. Esse comportamento sugere 
+# uma maior demanda elétrica durante a manhã e o início da tarde, mas não permite determinar quais atividades dos moradores provocaram essas variações.
 
