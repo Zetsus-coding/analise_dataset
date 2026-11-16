@@ -232,4 +232,27 @@ print(analise_outliers.round(3).to_string())
 
 # Análise breve sobre os extremos: Com a tabela gerada, é possível selecionar na tabela quais registros tem valores que são pequenos ou grandes demais e acabam afetando outros resultados. Um exemplo disso seria no caso
 # da potência agregada que apresenta um Linferior = -485 e o Lsuperior = 1115. Como estamos trabalhando potência elétrica consumida, sabemos que os valores não tem como ser negativos na prática, portanto esse limite não
-# teria utilidade prática nenhuma na identificação de valores extremos inferiores.
+# teria utilidade prática nenhuma na identificação de valores extremos inferiores. Então único valor extremo que seria avaliado para essa coluna seria o Lsuperior de 1115, onde qualquer valor acima disso seria um outlier
+
+# Seleção dos registros que são (possíveis) outliers -----------------------------------------
+
+colunas_validas = iqr[iqr > 0].index # Seleciona as colunas com IQR maior que zero
+
+# Verifica os valores que ultrapassam os limites
+fora_limites = (
+    (dados_potencia[colunas_validas] < outlier_inferior[colunas_validas]) | # ou
+    (dados_potencia[colunas_validas] > outlier_superior[colunas_validas])
+)
+
+df_outliers = df_filtrado.loc[fora_limites.any(axis=1)].copy() # Cria um novo df com os registros identificados
+analise_outliers["Qtd. outliers"] = fora_limites.sum() # Conta a quantidade de outliers por coluna 
+
+print("\n Quantidade de registros com possíveis outliers:", len(df_outliers))
+print(df_outliers.head())
+print(f"\n Isso representa {(len(df_outliers) / len(df_filtrado)) * 100:.3f}% dos registros filtrados")
+
+# Análise dos outliers [3.b]: Foram identificados 620745 registros (14,135%) com pelo menos um possível outlier nas variáveis analisadas. Entretanto, ultrapassar os limites do IQR não significa necessariamente
+# uma falha, pois valores elevados podem representar o funcionamento normal de equipamentos elétricos. Além disso, o método apresentou limitações nos aparelhos com IQR igual a zero. O valor máximo da potência 
+# agregada (32932 W) merece atenção por ser muito elevado, podendo representar uma anomalia de medição. Seria necessária uma investigação adicional para confirmar sua origem.
+
+
