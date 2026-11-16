@@ -47,7 +47,7 @@ print(f"Coluna: {df["Erro"].value_counts()} \n") # R(0): 4391427 [~99,09%]; R(1)
 
 print(f"Quantidade de valores nulos (NaT, NaN etc.) é igual: \n {df.isna().sum()} \n") # Verificando se existem valores nulos no df
 
-print(f"Quantidade de registros marcados com 'erro' E que a pot. agreg. é '0': {( (df["Pot_agreg"] == 0) & (df["Erro"] == 1) ).sum()} \n")
+print(f"Quantidade de registros marcados com 'erro' E que a pot. agreg. é '0': {( (df["Pot_agreg"] == 0) & (df["Erro"] == 1) ).sum()} \n") # R: 162
 
 # De todos os 162 registros que estão com '0' em potência agregada mostra apenas o primeiro resultado
 print(" V Primeiro registro onde isso acontece [Issues: 1 e Pot. agreg. = 0] V \n") 
@@ -68,8 +68,8 @@ print(f"Quantidade de registros que \"não batem\": {(condicao != df["Erro"].eq(
 df_filtrado = df.loc[df["Erro"] == 0].copy() # Seleciona apenas os registros sem erro (issues = 0) e cria uma cópia independente (um novo dataframe. Esse novo df será utilizada para os cálculos de consumo
 print("\nEstrutura do df 'limpo': ", df_filtrado.shape)# Confirmando o formato do novo df "limpo" (total - 40114)
 
-# Análise do novo df: O motivo de o novo df ser utilizado apenas para os cálculos de consumo (sem afetar a parte 2 do relatório), se deve ao fato de que ao "remover"/ocultar o parte dos registros, isso afe_
-# taria a interpretação relacionada a parte ao intervalo de medição (isso deve ficar esclarecido no relatório). Uma medição pode ser útil no contexto dos intervalos de tempo, mas não o caso da potência
+# Análise do novo df: O motivo de o novo df ser utilizado apenas para os cálculos de potência, isso se deve ao fato de que o novo df por não conter parte dos registros originais, afetaria a interpretação 
+# dos intervalos de medição (isso deve ficar esclarecido no relatório). Uma medição pode ser "útil" no contexto dos intervalos de tempo, mas não no caso da potência
 
 # ---------------------------------------------------
 # Análises dos dados (Primeira parte) V
@@ -124,3 +124,42 @@ print(df.loc[1404145:1404147]) # Imprimindo as linhas do DataFrame para confirma
 # Análise dos dados (Segunda parte - TABELA) V
 # ---------------------------------------------------
 
+# DF "ORIGINAL" ======================================
+media_original = df["Pot_agreg"].mean() # Para comparar com o df filtrado [Potência agregada]
+
+# DF FILTRADO ======================================
+media_filtrada = df_filtrado["Pot_agreg"].mean() # Para comparar com o df original [Potência agregada]
+
+colunas_potencia_individual = ["Pot_agreg"] + df_filtrado.loc[:, "Geladeira":"Sistema_HiFi"].columns.tolist() # Seleciona as colunas dos aparelhos, transforma em lista adiciona a coluna de pot. agreg. e armazena
+dados_potencia = df_filtrado[colunas_potencia_individual] # DataFrame com as colunas selecionadas na linha anterior
+
+# Criação de um novo df a partir de um dicionário (chaves = nomes das colunas; valores = linhas)
+calculos_estatisticos1 = pd.DataFrame ({
+    "Média (W)": dados_potencia.mean(),
+    "Mediana (W)": dados_potencia.median(), # A princípio não é necessário ordernar os dados antes
+    "Desvio-padrão (W)": dados_potencia.std(),
+    "Variância (W²)": dados_potencia.var(),
+    "Mínimo (W)": dados_potencia.min(),
+    "Máximo (W)": dados_potencia.max(),
+    "Q1 (W)": dados_potencia.quantile(0.25), # Primeiro quartil
+    "Q3 (W)": dados_potencia.quantile(0.75)  # Terceiro quartil
+})
+
+print("\n Estatísticas descritivas (df_filtrado):")
+print(calculos_estatisticos1.round(3).to_string(), "\n") # Arredonda (3 casas decimais), converte para string (para aparecer tudo no terminal - senão algumas colunas são escondidas) e imprime no terminal
+
+# Comparação para checar diferenças entre os df's
+print(f"Média original: {media_original:.3f} W") # Potência agregada
+print(f"Média filtrada: {media_filtrada:.3f} W") # Potência agregada
+print(f"Diferença: {media_filtrada - media_original:.3f} W")
+
+# Análise dos dados pt.1 [Pot_agreg]: A média é consideralvelmente maior que a mediana, o que sugere a presença de valores muito altos que acabam "puxando" ela para cima. O desvio padrão também possui um valor alto,
+# o que acaba indicando que os dados estão muito espalhados (comparado a média). Isso aponta para uma distribuição assimétrica com alta variabilidade e valores muito altos que afetam os resultados (mas ainda é 
+# necessário confirmar de outras maneiras - ex: histograma)
+
+# Análise dos dados pt.2 [Pot_agreg]: Os quartis demonstram que cerca de 50% centrais das medições estão entre os valores de 115 até 515 (W). Ao calcular a diferença dos quartis com a mediana, percebe-se que os re_
+# gistros entre a mediana e q3 estão distribuidos em uma faixa mais ampla se comparados com o de q1 e a mediana, o que reforça uma assimetria dos dados. A amplitude interquartil (q3 - q1) é igual a 400.
+
+# Análise dos dados pt.3 [Pot_agreg]: O valor máximo registrado não faz muito sentido nesse caso, tanto por ser muito alto, para uma residência e mesmo se considerarmos que todos os máximos do aparelhos monitorados 
+# ocorreram ao mesmo tempo, a soma fica bem abaixo do valor registrado. Isso pode indicar algum tipo de discrepância ou anomalis nas medições, como por exemplo: a falha/erro na coleta dessas medições ou que nem to_
+# dos os aparelhos da residência eram (ou foram) monitorados. Seria necessário uma análise mais profunda antes de uma conclusão
