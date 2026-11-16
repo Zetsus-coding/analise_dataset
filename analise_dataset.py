@@ -8,21 +8,21 @@ df = pd.read_csv("CLEAN_House11.csv")
 df = df.rename(columns = {
     "Time": "Tempo",
     "Unix": "Unix",
-    "Aggregate": "Potência agregada",
+    "Aggregate": "Pot_agreg", # Potência agregada
     "Appliance1": "Geladeira", # Modelo: Gorenje HPI 1566; Monitoramento iniciado em: 7/10/2014
-    "Appliance2": "Geladeira com freezer", 
+    "Appliance2": "Geladeira_freezer", 
     "Appliance3": "Lava-roupas", 
-    "Appliance4": "Lava-louças", # Troca registrada em: 4/10/2014
-    "Appliance5": "Conj. de computadores", 
+    "Appliance4": "Lava-loucas", # Troca registrada em: 4/10/2014
+    "Appliance5": "Conj_computadores", 
     "Appliance6": "Micro-ondas", 
-    "Appliance7": "Chaleira elétrica", 
+    "Appliance7": "Chaleira_eletrica", 
     "Appliance8": "Roteador", 
-    "Appliance9": "Sistema Hi-Fi",
-    "Issues": "Erros/Problemas"
+    "Appliance9": "Sistema_HiFi",
+    "Issues": "Erro" 
 })
 
 # Convertendo a coluna 'Tempo' para o tipo datetime (para uso em cálculos e análises baseadas em tempo)
-df['Tempo'] = pd.to_datetime(df['Tempo'], format='%Y-%m-%d %H:%M:%S')
+df['Tempo'] = pd.to_datetime(df['Tempo'], format='%Y-%m-%d %H:%M:%S') # ano-mês-dia
 
 # Exibindo as primeiras linhas do DataFrame (para checagem inicial)
 print(df.head())
@@ -35,21 +35,39 @@ df.info()
 # Com o df.shape() é possível identificar a estrutura do DataFrame, ou seja, a quantidade de linhas e colunas (meio redundante nesse caso - já que já foi feito df.info()).
 print("\nEstrutura do DataFrame: ", df.shape)
 
-# Verificação de possíveis inconsistências nos dados -----------------------------------
+# -----------------------------------------------------
+# Verificação de possíveis inconsistências nos dados V
+# -----------------------------------------------------
 
-print(f"Existem {df['Potência agregada'].eq(0).sum()} registros com valor '0' na coluna Potência agregada \n") # R: 162 - Isso corresponde a aproximadamente 0,0037% do total de medições (162/4.400.000)
-print(f"{df["Erros/Problemas"].value_counts()} \n") # R(0): 4391427 [~99,09%]; R(1): 40114 [~0,91%]
+print(f"Existem {df["Pot_agreg"].eq(0).sum()} registros com valor '0' na coluna Potência agregada \n") # R: 162 - Isso corresponde a aproximadamente 0,0037% do total de medições (parte/todo)
+print(f"Coluna: {df["Erro"].value_counts()} \n") # R(0): 4391427 [~99,09%]; R(1): 40114 [~0,91%] -> Quantidade de registros na coluna Erros com 0 e 1
 
 # No documento REFIT, é informado que: "quando a soma das medições individuiais é maior que a potência agregada da residência" a coluna "Issues" (Erros/Problemas) fica marcada
 # com '1' e que é recomendada a remoção, sinalização (ou pelo menos feita uma discussão) desses registros
 
-print(f"Quantidade de valores nulos (NaT, NaN etc.) é igual: \n {df.isna().sum()} \n")
+print(f"Quantidade de valores nulos (NaT, NaN etc.) é igual: \n {df.isna().sum()} \n") # Verificando se existem valores nulos no df
 
-print(f"Quantidade de registros zerados e marcados na coluna Erros/Problemas: {( (df["Potência agregada"] == 0) & (df["Erros/Problemas"] == 1) ).sum()} \n")
+print(f"Quantidade de registros marcados com 'erro' E que a pot. agreg. é '0': {( (df["Pot_agreg"] == 0) & (df["Erro"] == 1) ).sum()} \n")
 
-print(df.loc[df["Potência agregada"] == 0].iloc[0])
+# De todos os 162 registros que estão com '0' em potência agregada mostra apenas o primeiro resultado
+print(" V Primeiro registro onde isso acontece [Issues: 1 e Pot. agreg. = 0] V \n") 
+print(df.loc[df["Pot_agreg"] == 0].iloc[0]) 
 
-# Análises dos dados --------------------------------------------------------------------------------------
+# Documentação REFIT: "Inclusão da coluna Issues, definida como 1 quando a soma das medições individuais (IAMs) é maior que a potência agregada da residência"
+
+soma_aparelhos = df.loc[:, "Geladeira":"Sistema_HiFi"].sum(axis=1) # Soma as potências individuais de cada um dos aparelhos (baseia-se na ordem do df)
+condicao = soma_aparelhos > df["Pot_agreg"] # "Verifica" se soma feita anteriormente é maior que a pot. agreg. e armazena o resultado na variável (linha por linha) [Maior = true; Menor ou igual = false]
+
+print(f"\nQuantidade de resultados onde as soma das pot. individuais é maior que a pot. agregada: {condicao.sum()}") # Conta e imprime a quant. de resultados verdadeiros armazenados em condicao | R: 40114
+print(f"Quantidade de registros que \"não batem\": {(condicao != df["Erro"].eq(1)).sum()}") # Verifica e conta quantos divergências existem [ex: Issues = 1 mas pot. soma pot. individuais <= agreg] | R: 0
+
+# Análise dessa "seção" : Esse pequena seção ["Verificação de possíveis inconsistências nos dados"] serviu para garantir que a "regra" que explica quais registros estão marcados com erro (Issue = 1)
+# está "batendo" com o dataset, que será utilizado. Após confirmado (ou não), será feita a decisão se esses registros ou parte deles deve ser desconsiderado. O próprio REFIT diz: "A documentação recomenda
+# descartar ou sinalizar os registros em que Issues = 1, ou, no mínimo, discutir a discrepância na análise.".
+
+# ---------------------------------------------------
+# Análises dos dados (Primeira parte) V
+# ---------------------------------------------------
 
 # Primeiro e último registro do dataset
 print("\nData do primeiro registro: ", df['Tempo'].min())
@@ -62,7 +80,7 @@ intervalos = df["Tempo"].diff().dt.total_seconds() # Teste anterior + conversão
 
 # print(df["Tempo"].is_monotonic_increasing) # Verifica se a coluna Tempo está ordenada de forma crescente (True) ou não (False)
 
-# Se a coluna Tempo estiver ordenad (de forma crescente), então calcule: média, mediana, maior e menor intervalos
+# Se a coluna Tempo estiver ordenada (de forma crescente), então calcule: média, mediana, maior e menor intervalos
 if df["Tempo"].is_monotonic_increasing:
     print(f"\nIntervalo médio entre as medições: {intervalos.mean():.3f} segundos") # R: 7,464
     print(f"Mediana dos intervalos: {intervalos.median():.3f} segundos") # R: 7,000
@@ -96,5 +114,6 @@ print(df.loc[1404145:1404147]) # Imprimindo as linhas do DataFrame para confirma
 # diários, pode impactar as análises temporais e estimativas de consumo de energia, bem como uma indentificação de padrões de uso
 # da residência, caso seja mantido.
 
-# Análise dos dados (TABELA) --------------------------------------------------------------------------------------
-
+# ---------------------------------------------------
+# Análise dos dados (Segunda parte - TABELA) V
+# ---------------------------------------------------
