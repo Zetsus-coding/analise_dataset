@@ -124,6 +124,8 @@ print(df.loc[1404145:1404147]) # Imprimindo as linhas do DataFrame para confirma
 # Análise dos dados (Segunda parte - TABELA) V
 # ---------------------------------------------------
 
+# 3A --------------------------------------------------
+
 # DF "ORIGINAL" ======================================
 media_original = df["Pot_agreg"].mean() # Para comparar com o df filtrado [Potência agregada]
 
@@ -153,6 +155,8 @@ print(f"Média original: {media_original:.3f} W") # Potência agregada
 print(f"Média filtrada: {media_filtrada:.3f} W") # Potência agregada
 print(f"Diferença: {media_filtrada - media_original:.3f} W")
 
+# Análise: Potência agregada
+
 # Análise dos dados pt.1 [Pot_agreg]: A média é consideralvelmente maior que a mediana, o que sugere a presença de valores muito altos que acabam "puxando" ela para cima. O desvio padrão também possui um valor alto,
 # o que acaba indicando que os dados estão muito espalhados (comparado a média). Isso aponta para uma distribuição assimétrica com alta variabilidade e valores muito altos que afetam os resultados (mas ainda é 
 # necessário confirmar de outras maneiras - ex: histograma)
@@ -163,3 +167,69 @@ print(f"Diferença: {media_filtrada - media_original:.3f} W")
 # Análise dos dados pt.3 [Pot_agreg]: O valor máximo registrado não faz muito sentido nesse caso, tanto por ser muito alto, para uma residência e mesmo se considerarmos que todos os máximos do aparelhos monitorados 
 # ocorreram ao mesmo tempo, a soma fica bem abaixo do valor registrado. Isso pode indicar algum tipo de discrepância ou anomalis nas medições, como por exemplo: a falha/erro na coleta dessas medições ou que nem to_
 # dos os aparelhos da residência eram (ou foram) monitorados. Seria necessário uma análise mais profunda antes de uma conclusão
+
+# Análise: Lava-roupas
+
+lava_roupas_positivo = (df_filtrado["Lava-roupas"] > 0).sum() # Selecionando os registros onde a coluna da lava-roupas é maior que '0'
+print(f"\n Registros com potência positiva [Lava-roupas]: {lava_roupas_positivo}")
+
+# Análise dos dados pt.1 [Lava-roupas]: [Primeiro teste de checagem dos valores da tabelas] O fato de a mediana desse aparelho ter sido '0' indica que metada dos valores é igual a 0 (menor ou igual, para ser mais exato). 
+# O valor máximo registrado condiz com esse tipo de aparelho (onde o valor máximo é maior que a média - por não ser de uso contínuo). Porém ao analisar mais à fundo, foi identificado que apenas 300368 registros tem a 
+# potência do aparelho diferentes de 0, o que é aproximadamente (parte/todo) igual à 6,84% de todos os registros. Esse resultado é composto em grande parte, por registros com várias potências diferentes (checado com sql
+# query e usando diferentes valores de comparação)
+
+# Análise restante dos dispositivos
+
+# Da mesma forma que essa checagem foi realizada na lava-roupas, também será realizada nos dispositivos onde a mediana também é '0'
+aparelhos = dados_potencia.drop(columns=["Pot_agreg"]) # "Remove" a coluna de pot. agreg. "deixando" apenas as dos aparelhos individuais
+
+# Contagem de registros (com valor 0 e com valor positivo) 
+quant_zeros = aparelhos.eq(0).sum()
+quant_positivos = aparelhos.gt(0).sum() #gt(0) == >0 (get greater than)
+
+# Cálculo dos percentuais (parte/tudo * 100)
+percentual_zeros = (quant_zeros / len(df_filtrado)) * 100
+percentual_positivos = (quant_positivos / len(df_filtrado)) * 100
+
+# Organização dos resultados
+analise_aparelhos = pd.DataFrame({
+    "Registros = 0": quant_zeros,
+    "Registros > 0": quant_positivos,
+    "% iguais a 0": percentual_zeros,
+    "% positivos": percentual_positivos
+})
+
+print("\n", analise_aparelhos.round(3).to_string()) # Imprime a quantidade de registros com 0 e registros positivos (>0), além de mostrar a porcentagem que cada um representa do total
+
+# Análise dos aparelhos [3.a]: A predominância de registros zerados em alguns equipamentos ajuda a explicar as medianas iguais a zero e as médias baixas. Já no caso do micro-ondas e o roteador apresentam potências positivas 
+# em quase todos os seus registros, possivelmente devido ao consumo em standby(?). Entretanto, nem todo valor zero indica um aparelho desligado, pois o próprio REFIT informa que alguns dados foram zerados durante a limpeza
+# ou por ausência de medições. Uma análise mais aprofundada seria necessária para identificar os padrões reais de funcionamento Outro ponto a se considerar seria no caso da geladeira, que no REFIT informa, que o registros
+# desse aparelho só iniciaram no dia 07/10/2014. 
+
+# 3B ----------------------------------------------------------------------------
+
+# Fórmula para os cálculos de outliers: Amplit. interquartil = Q3 - Q1; Outlier (inferior) = Q1 - 1,5 * IQR; Outlier (superior) = Q3 + 1,5 * IQR;
+
+q1 = dados_potencia.quantile(0.25) # Selecionando q1
+q3 = dados_potencia.quantile(0.75) # Selecionando q3
+
+iqr = q3 - q1 # Amplitude interquartil
+
+outlier_inferior = q1 - (1.5 * iqr)
+outlier_superior = q3 + (1.5 * iqr)
+
+# Criando um DataFrame com os resultados para todas as colunas
+analise_outliers = pd.DataFrame({
+    "Q1": q1,
+    "Q3": q3,
+    "IQR": iqr,
+    "Limite inferior": outlier_inferior,
+    "Limite superior": outlier_superior
+})
+
+print("\nAnálise dos limites de outliers:")
+print(analise_outliers.round(3).to_string())
+
+# Análise breve sobre os extremos: Com a tabela gerada, é possível selecionar na tabela quais registros tem valores que são pequenos ou grandes demais e acabam afetando outros resultados. Um exemplo disso seria no caso
+# da potência agregada que apresenta um Linferior = -485 e o Lsuperior = 1115. Como estamos trabalhando potência elétrica consumida, sabemos que os valores não tem como ser negativos na prática, portanto esse limite não
+# teria utilidade prática nenhuma na identificação de valores extremos inferiores.
